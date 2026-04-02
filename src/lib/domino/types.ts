@@ -1,3 +1,5 @@
+export type Seat = 'north' | 'east' | 'south' | 'west';
+
 export type PlayerId = string;
 export type Team = 'north-south' | 'east-west';
 
@@ -23,7 +25,7 @@ export type RoomMember = {
   roomId: string;
   playerId: PlayerId;
   displayName: string;
-  seat: 'north' | 'east' | 'south' | 'west';
+  seat: Seat | null;
   online: boolean;
   joinedAt: string;
 };
@@ -55,4 +57,35 @@ export type DominoGameState = {
   moves: DominoMove[];
   winnerTeam: Team | null;
   updatedAt: string;
+};
+
+export type LiveRoomSnapshot = {
+  room: {
+    id: string;
+    code: string;
+    name: string;
+    createdAt: string;
+  };
+  members: Array<{
+    id: string;
+    sessionId: string;
+    displayName: string;
+    seat: Seat | null;
+    online: boolean;
+    joinedAt: string;
+  }>;
+  messages: Array<{
+    id: string;
+    sessionId: string;
+    authorName: string;
+    body: string;
+    createdAt: string;
+  }>;
+  game: {
+    phase: 'waiting' | 'playing' | 'finished';
+    currentTurnSeat: Seat | null;
+    board: Array<{ left: number; right: number }>;
+    statusText: string;
+    updatedAt: string;
+  };
 };
