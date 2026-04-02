@@ -147,26 +147,71 @@ function SeatBadge({ seat, member, count, active }: { seat: Seat; member?: LiveR
   );
 }
 
-function getBoardTileClasses(index: number) {
-  const columns = 8;
-  const row = Math.floor(index / columns);
-  const positionInRow = index % columns;
-  const isReverseRow = row % 2 === 1;
-  const column = isReverseRow ? columns - positionInRow : positionInRow + 1;
-  const isTurnColumn = positionInRow === columns - 1;
-  const sideways = isTurnColumn;
-  const verticalNudge = row % 2 === 0 ? 8 : -8;
-  const rotate = sideways ? (row % 2 === 0 ? 90 : -90) : 0;
+type BoardPlacement = {
+  left: string;
+  top: string;
+  sideways: boolean;
+  zIndex: number;
+};
 
-  return {
-    sideways,
-    style: {
-      gridColumn: `${column} / span 1`,
-      gridRow: `${row + 1} / span 1`,
-      transform: `translateY(${sideways ? 0 : verticalNudge}px) rotate(${rotate}deg)`,
-      zIndex: 100 - index,
-    },
-  };
+function buildBranchPlacements(count: number, direction: 'left' | 'right') {
+  const placements: BoardPlacement[] = [];
+  const horizontalStep = 12;
+  const verticalStep = 26;
+  const startX = direction === 'right' ? 50 : 50;
+  const startY = 50;
+  const sign = direction === 'right' ? 1 : -1;
+
+  for (let index = 0; index < count; index += 1) {
+    let x = startX;
+    let y = startY;
+    let sideways = false;
+
+    if (index < 3) {
+      x += sign * (index + 1) * horizontalStep;
+    } else if (index === 3) {
+      x += sign * 4 * horizontalStep;
+      y -= verticalStep;
+      sideways = true;
+    } else if (index === 4) {
+      x += sign * 4 * horizontalStep;
+      y -= verticalStep * 2;
+      sideways = true;
+    } else {
+      x += sign * (4 - (index - 4)) * horizontalStep;
+      y -= verticalStep * 2;
+    }
+
+    placements.push({
+      left: `${x}%`,
+      top: `${y}%`,
+      sideways,
+      zIndex: 50 - index,
+    });
+  }
+
+  return placements;
+}
+
+function getBoardPlacements(total: number) {
+  if (total === 0) return [] as BoardPlacement[];
+
+  const centerIndex = Math.floor((total - 1) / 2);
+  const placements: BoardPlacement[] = Array.from({ length: total }, () => ({ left: '50%', top: '50%', sideways: false, zIndex: 1 }));
+
+  placements[centerIndex] = { left: '50%', top: '50%', sideways: false, zIndex: 60 };
+
+  const rightBranch = buildBranchPlacements(total - centerIndex - 1, 'right');
+  for (let index = centerIndex + 1; index < total; index += 1) {
+    placements[index] = rightBranch[index - centerIndex - 1];
+  }
+
+  const leftBranch = buildBranchPlacements(centerIndex, 'left');
+  for (let offset = 1; offset <= centerIndex; offset += 1) {
+    placements[centerIndex - offset] = leftBranch[offset - 1];
+  }
+
+  return placements;
 }
 
 export function RoomShell({ initialSnapshot }: Props) {
@@ -307,6 +352,7 @@ export function RoomShell({ initialSnapshot }: Props) {
   const eastMember = snapshot.members.find((member) => member.seat === 'east');
   const southMember = snapshot.members.find((member) => member.seat === 'south');
   const westMember = snapshot.members.find((member) => member.seat === 'west');
+  const boardPlacements = getBoardPlacements(snapshot.game.board.length);
 
   return (
     <div className="space-y-4">
@@ -358,11 +404,15 @@ export function RoomShell({ initialSnapshot }: Props) {
                         <div className="pointer-events-none absolute inset-0 rounded-[1.5rem] border border-white/5" />
                         <div className="pointer-events-none absolute inset-x-8 top-1/2 hidden h-px -translate-y-1/2 border-t border-dashed border-amber-100/10 md:block" />
                         <div className="pointer-events-none absolute inset-y-8 left-1/2 hidden w-px -translate-x-1/2 border-l border-dashed border-amber-100/10 xl:block" />
-                        <div className="grid min-h-[280px] grid-cols-8 place-items-center gap-x-1 gap-y-3 px-2 py-4 md:min-h-[320px] md:gap-x-2 md:gap-y-4 md:px-3 xl:min-h-[360px] xl:gap-x-3 xl:gap-y-5 xl:px-6">
+                        <div className="relative min-h-[280px] md:min-h-[320px] xl:min-h-[360px]">
                           {snapshot.game.board.map((tile, index) => {
-                            const placement = getBoardTileClasses(index);
+                            const placement = boardPlacements[index];
                             return (
-                              <div key={`${tile.id}-${tile.placedBy}-${tile.left}-${tile.right}-${index}`} style={placement.style} className="transition-transform duration-150">
+                              <div
+                                key={`${tile.id}-${tile.placedBy}-${tile.left}-${tile.right}-${index}`}
+                                style={{ left: placement.left, top: placement.top, zIndex: placement.zIndex }}
+                                className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-150"
+                              >
                                 <TileFace left={tile.left} right={tile.right} sideways={placement.sideways} />
                               </div>
                             );
