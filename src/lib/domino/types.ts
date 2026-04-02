@@ -84,8 +84,12 @@ export type LiveRoomSnapshot = {
   game: {
     phase: 'waiting' | 'playing' | 'finished';
     currentTurnSeat: Seat | null;
-    board: Array<{ left: number; right: number }>;
+    board: Array<{ id: string; left: number; right: number; placedBy: Seat }>;
     statusText: string;
     updatedAt: string;
+    hand: Array<{ id: string; left: number; right: number }>;
+    handCounts: Partial<Record<Seat, number>>;
+    validSidesByTile: Record<string, Array<'left' | 'right'>>;
+    winnerSeat: Seat | null;
   };
 };

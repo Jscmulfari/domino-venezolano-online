@@ -6,13 +6,8 @@ export default async function RoomPage({ params }: { params: Promise<{ roomCode:
   const snapshot = await getRoomSnapshot(roomCode);
 
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-8 text-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-          <p className="text-xs uppercase tracking-[0.24em] text-cyan-300">Sala privada</p>
-          <h1 className="mt-2 text-3xl font-semibold">{snapshot.room.name}</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-300">Código {snapshot.room.code}. Chat realtime, puestos y mesa compartida.</p>
-        </div>
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#166534_0%,#052e16_45%,#020617_100%)] px-3 py-4 text-white md:px-6 md:py-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4">
         <RoomShell initialSnapshot={snapshot} />
       </div>
     </main>

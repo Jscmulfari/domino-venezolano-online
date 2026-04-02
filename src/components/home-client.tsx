@@ -25,7 +25,7 @@ export function HomeClient() {
   const router = useRouter();
   const [displayName, setDisplayName] = useState('');
   const [roomCode, setRoomCode] = useState('');
-  const [roomName, setRoomName] = useState('Sala familiar');
+  const [roomName, setRoomName] = useState('Mesa familiar');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +44,6 @@ export function HomeClient() {
       });
 
       if (!result.ok) throw new Error(result.error);
-
       router.push(`/rooms/${result.data.roomCode}`);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Error inesperado');
@@ -69,7 +68,6 @@ export function HomeClient() {
       });
 
       if (!result.ok) throw new Error(result.error);
-
       router.push(`/rooms/${result.data.roomCode}`);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Error inesperado');
@@ -81,31 +79,31 @@ export function HomeClient() {
   const disabled = loading || !displayName.trim();
 
   return (
-    <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-      <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
-        <p className="text-xs uppercase tracking-[0.24em] text-slate-400">MVP real</p>
+    <section className="grid gap-6 lg:grid-cols-[1fr_420px]">
+      <div className="rounded-3xl border border-white/10 bg-black/15 p-6">
+        <p className="text-xs uppercase tracking-[0.24em] text-amber-200/70">Qué ya se siente real</p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-5">
-            <h2 className="text-xl font-semibold">Salas privadas</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-300">Crear sala y compartir link o código.</p>
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+            <h2 className="text-xl font-semibold">Mesa visual</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300">Tablero central con fichas visibles y posiciones de 4 jugadores.</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-5">
-            <h2 className="text-xl font-semibold">Chat realtime</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-300">Mensajes persistidos y sincronizados por Supabase.</p>
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+            <h2 className="text-xl font-semibold">Mano privada</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300">Cada dispositivo ve solo su mano cuando la partida inicia.</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-5">
-            <h2 className="text-xl font-semibold">Lobby listo</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-300">Asientos, presencia y arranque de partida.</p>
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+            <h2 className="text-xl font-semibold">Turnos</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300">Se marca turno actual y solo deja jugar fichas válidas básicas.</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-5">
-            <h2 className="text-xl font-semibold">Mesa sincronizada</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-300">Turno actual y fichas jugadas compartidas.</p>
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+            <h2 className="text-xl font-semibold">Realtime</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300">Mesa, manos y jugadas se sincronizan por Supabase.</p>
           </div>
         </div>
       </div>
 
-      <div className="rounded-3xl border border-cyan-400/20 bg-gradient-to-br from-cyan-400/15 to-indigo-500/10 p-6">
-        <p className="text-xs uppercase tracking-[0.24em] text-cyan-300">Entrar</p>
+      <div className="rounded-3xl border border-amber-400/20 bg-black/20 p-6">
+        <p className="text-xs uppercase tracking-[0.24em] text-amber-300">Entrar a jugar</p>
         <div className="mt-4 space-y-4">
           <input
             value={displayName}
@@ -116,29 +114,21 @@ export function HomeClient() {
           <input
             value={roomName}
             onChange={(event) => setRoomName(event.target.value)}
-            placeholder="Nombre de sala"
+            placeholder="Nombre de mesa"
             className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white outline-none placeholder:text-slate-500"
           />
-          <button
-            onClick={createRoom}
-            disabled={disabled}
-            className="w-full rounded-2xl bg-cyan-400 px-4 py-3 font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? 'Procesando...' : 'Crear sala'}
+          <button onClick={createRoom} disabled={disabled} className="w-full rounded-2xl bg-amber-300 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50">
+            {loading ? 'Procesando...' : 'Crear mesa'}
           </button>
           <div className="h-px bg-white/10" />
           <input
             value={roomCode}
             onChange={(event) => setRoomCode(event.target.value.toUpperCase())}
-            placeholder="Código"
+            placeholder="Código de mesa"
             className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white uppercase outline-none placeholder:text-slate-500"
           />
-          <button
-            onClick={joinRoom}
-            disabled={disabled || !roomCode.trim()}
-            className="w-full rounded-2xl border border-white/15 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Unirme por código
+          <button onClick={joinRoom} disabled={disabled || !roomCode.trim()} className="w-full rounded-2xl border border-white/15 px-4 py-3 font-semibold text-white disabled:opacity-50">
+            Entrar por código
           </button>
           {error ? <p className="text-sm text-rose-300">{error}</p> : null}
         </div>
