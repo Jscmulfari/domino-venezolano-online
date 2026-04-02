@@ -1,26 +1,49 @@
 # Dominó Venezolano Online
 
-MVP real para jugar dominó venezolano entre familia y amigos en salas privadas.
+Proyecto para jugar dominó venezolano online bajo contrato autoritativo.
 
-## Ya funcional
+## SPEC de referencia
 
-- crear sala privada
-- entrar por código o link
-- chat realtime persistido con Supabase
-- lobby sincronizado con puestos north/east/south/west
-- inicio de partida base
-- mesa compartida inicial con turno actual y fichas jugadas demo
+Base oficial documentada en:
+- `docs/official-spec-alignment.md`
+- `docs/architecture.md`
 
-## Stack
+## Objetivo actual
 
-- Next.js 16 + App Router + TypeScript
-- Tailwind CSS 4
-- Supabase Realtime + Postgres
-- Vercel para deploy
+Construir una mesa 4 jugadores exactos, 2v2, preset venezolano, con:
+- lobby con host y ready
+- servidor autoritativo
+- realtime robusto
+- reconexión
+- scoring por ronda y partida
+- arquitectura extensible
 
-## Variables
+## Qué ya sirve del código actual
 
-Copia `.env.example` a `.env.local`.
+- base Next.js + App Router
+- integración con Supabase
+- rooms privadas y join por código/link
+- asientos north/east/south/west
+- snapshot básico de sala
+- UI de mesa como prototipo visual
+- CPU simple para flujo de pruebas
+
+## Qué no cumple todavía
+
+- no hay engine autoritativo completo
+- no hay scoring real por ronda/partida
+- no hay reconexión robusta
+- no hay lobby con ready/host formal
+- no hay separación final entre engine/domain/use-cases/realtime
+
+## Estructura objetivo
+
+```txt
+src/lib/domain/
+src/lib/engine/
+src/lib/realtime/
+src/lib/use-cases/
+```
 
 ## Levantar
 
@@ -30,10 +53,6 @@ npm run dev
 ```
 
 ## Base de datos
-
-La migración inicial está en `supabase/migrations/20260402044500_mvp_rooms_chat_game.sql`.
-
-Con Supabase CLI:
 
 ```bash
 npx supabase link --project-ref <ref>

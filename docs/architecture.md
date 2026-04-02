@@ -1,51 +1,52 @@
-# Arquitectura MVP
+# Arquitectura objetivo
 
-## Objetivo
+Este repo deja de tratarse como un MVP abierto y pasa a alinearse con el SPEC oficial del producto.
 
-Plataforma web para salas privadas de dominó venezolano con chat y partida realtime para familia/amigos.
+## Contrato principal
+- 4 jugadores exactos
+- 2v2 fijo por asientos
+- preset venezolano por defecto
+- servidor autoritativo
+- realtime robusto con resync
+- lobby con host + ready
+- reconexión
+- scoring por ronda/partida
+- arquitectura extensible
 
-## Capas
+## Fases
 
-### Frontend
-- Next.js App Router
-- UI responsive mobile/desktop
-- Pantallas clave:
-  - home
-  - lobby / crear sala
-  - sala de juego
+### Fase 1 — lobby autoritativo
+- host
+- ready state
+- asientos bloqueados
+- gate de inicio
 
-### Backend lógico
-- Route Handlers / Server Actions en Next.js
-- Validación de reglas y transiciones de estado del juego
-- Acceso a Supabase para persistencia y realtime
+### Fase 2 — engine de ronda
+- apertura
+- turnos
+- pase / tranque
+- cierre de ronda
 
-### Realtime
-- Supabase Realtime por sala
-- Canales por `room:{code}`
-- Eventos esperados:
-  - `chat.message.created`
-  - `room.member.joined`
-  - `game.state.updated`
-  - `game.turn.changed`
+### Fase 3 — realtime robusto
+- snapshot versionado
+- eventos tipados
+- resync al reconectar
 
-## Modelos base
+### Fase 4 — scoring y match
+- puntos por ronda
+- acumulado por equipos
+- fin de partida
 
-- `Room`
-- `RoomMember`
-- `ChatMessage`
-- `DominoTile`
-- `DominoGameState`
-- `DominoMove`
+### Fase 5 — presets y CPU
+- venezolano primero
+- otras variantes después
 
-## Reglas venezolanas MVP
+## Capas propuestas
+- `lib/domain/` contratos e invariantes
+- `lib/engine/` motor puro
+- `lib/use-cases/` casos de uso servidor
+- `lib/realtime/` eventos y sincronización
+- `lib/persistence/` acceso a storage
 
-- 4 jugadores
-- 2 equipos
-- mano inicial de 7 fichas
-- apertura y turnos validados por servidor
-- mesa con dos puntas
-- conteo de ganador y score básico
-
-## Nota Vercel
-
-No montar sockets custom stateful dentro de Next para el MVP. Vercel + Supabase Realtime evita fricción operativa y escala mejor para salas privadas simples.
+## Estado actual
+El repo ya trae una base útil de room flow, Supabase, snapshots y UI prototipo, pero todavía no cumple el contrato completo del producto. El siguiente trabajo debe migrar la lógica real al engine autoritativo y usar la UI actual solo como superficie de entrega.
