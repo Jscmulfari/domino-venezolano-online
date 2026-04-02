@@ -147,6 +147,24 @@ function SeatBadge({ seat, member, count, active }: { seat: Seat; member?: LiveR
   );
 }
 
+function getBoardTileClasses(index: number, total: number) {
+  const middle = Math.floor(total / 2);
+  const distance = Math.abs(index - middle);
+  const row = Math.floor(index / 7);
+  const tilt = index % 6 === 1 ? -10 : index % 6 === 4 ? 10 : index % 4 === 2 ? 6 : 0;
+  const sideways = index % 5 === 2 || index % 5 === 3;
+  const lift = row % 2 === 0 ? (index % 3) * 8 : ((index + 1) % 3) * -8;
+  const xShift = row % 2 === 0 ? distance * -2 : distance * 2;
+
+  return {
+    sideways,
+    style: {
+      transform: `translate(${xShift}px, ${lift}px) rotate(${tilt}deg)`,
+      zIndex: total - distance,
+    },
+  };
+}
+
 export function RoomShell({ initialSnapshot }: Props) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [chatInput, setChatInput] = useState('');
@@ -314,29 +332,37 @@ export function RoomShell({ initialSnapshot }: Props) {
                 </div>
               </div>
 
-              <div className="grid items-center gap-3 md:grid-cols-[160px_minmax(0,1fr)_160px]">
+              <div className="grid items-center gap-4 md:grid-cols-[140px_minmax(0,1fr)_140px] xl:grid-cols-[170px_minmax(0,1fr)_170px]">
                 <div className="flex flex-col items-center gap-3">
                   <SeatBadge seat="west" member={westMember} count={snapshot.game.handCounts.west ?? 0} active={snapshot.game.currentTurnSeat === 'west'} />
                   <OpponentFan count={snapshot.game.handCounts.west ?? 0} sideways />
                 </div>
 
-                <div className="rounded-[2rem] border border-white/10 bg-black/12 px-4 py-5 shadow-inner shadow-black/25 md:px-6 md:py-8">
-                  <div className="mb-4 flex items-center justify-between text-xs uppercase tracking-[0.25em] text-amber-100/60">
-                    <span>Punta izquierda</span>
-                    <span>Cadena central</span>
-                    <span>Punta derecha</span>
+                <div className="rounded-[2.2rem] border border-white/10 bg-black/12 px-3 py-4 shadow-inner shadow-black/25 md:px-5 md:py-6 xl:px-8 xl:py-8">
+                  <div className="mb-4 flex items-center justify-between text-[11px] uppercase tracking-[0.28em] text-amber-100/60">
+                    <span>Salida</span>
+                    <span>Cadena de juego</span>
+                    <span>Cierre</span>
                   </div>
-                  <div className="min-h-[230px] rounded-[1.6rem] border border-dashed border-amber-100/15 bg-black/10 px-4 py-6">
+                  <div className="rounded-[1.8rem] border border-dashed border-amber-100/15 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.08),rgba(0,0,0,0.18))] px-3 py-4 md:px-5 md:py-5 xl:px-7 xl:py-6">
                     {snapshot.game.board.length === 0 ? (
-                      <div className="flex h-full min-h-[180px] items-center justify-center text-center text-sm text-amber-100/70">
+                      <div className="flex min-h-[280px] items-center justify-center text-center text-sm text-amber-100/70 md:min-h-[320px] xl:min-h-[360px]">
                         La mesa espera la primera ficha.
                       </div>
                     ) : (
-                      <div className="flex min-h-[180px] flex-wrap items-center justify-center gap-2 md:gap-3">
-                        {snapshot.game.board.map((tile, index) => {
-                          const sideways = index % 4 === 1 || index % 4 === 2;
-                          return <TileFace key={`${tile.id}-${tile.placedBy}-${tile.left}-${tile.right}-${index}`} left={tile.left} right={tile.right} sideways={sideways} />;
-                        })}
+                      <div className="relative min-h-[280px] md:min-h-[320px] xl:min-h-[360px]">
+                        <div className="pointer-events-none absolute inset-x-12 top-1/2 hidden h-px -translate-y-1/2 border-t border-dashed border-amber-100/10 md:block" />
+                        <div className="pointer-events-none absolute inset-y-10 left-1/2 hidden w-px -translate-x-1/2 border-l border-dashed border-amber-100/10 xl:block" />
+                        <div className="flex h-full flex-wrap content-center items-center justify-center gap-x-1 gap-y-4 md:gap-x-2 xl:gap-x-3">
+                          {snapshot.game.board.map((tile, index) => {
+                            const placement = getBoardTileClasses(index, snapshot.game.board.length);
+                            return (
+                              <div key={`${tile.id}-${tile.placedBy}-${tile.left}-${tile.right}-${index}`} style={placement.style} className="transition-transform duration-150">
+                                <TileFace left={tile.left} right={tile.right} sideways={placement.sideways} />
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
