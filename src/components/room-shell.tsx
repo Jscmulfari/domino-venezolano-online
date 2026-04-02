@@ -156,37 +156,29 @@ type BoardPlacement = {
 
 function buildBranchPlacements(count: number, direction: 'left' | 'right') {
   const placements: BoardPlacement[] = [];
-  const horizontalStep = 12;
-  const verticalStep = 26;
-  const startX = direction === 'right' ? 50 : 50;
-  const startY = 50;
+  const startX = 50;
+  const startY = 54;
   const sign = direction === 'right' ? 1 : -1;
+  const horizontalStep = 9.5;
+  const verticalStep = 17;
+  const horizontalRun = 4;
 
   for (let index = 0; index < count; index += 1) {
-    let x = startX;
-    let y = startY;
-    let sideways = false;
+    const segment = Math.floor(index / horizontalRun);
+    const offsetInSegment = index % horizontalRun;
+    const movingOutward = segment % 2 === 0;
 
-    if (index < 3) {
-      x += sign * (index + 1) * horizontalStep;
-    } else if (index === 3) {
-      x += sign * 4 * horizontalStep;
-      y -= verticalStep;
-      sideways = true;
-    } else if (index === 4) {
-      x += sign * 4 * horizontalStep;
-      y -= verticalStep * 2;
-      sideways = true;
-    } else {
-      x += sign * (4 - (index - 4)) * horizontalStep;
-      y -= verticalStep * 2;
-    }
+    const x = movingOutward
+      ? startX + sign * (offsetInSegment + 1) * horizontalStep
+      : startX + sign * (horizontalRun - offsetInSegment) * horizontalStep;
+    const y = startY - segment * verticalStep;
+    const sideways = offsetInSegment === horizontalRun - 1;
 
     placements.push({
       left: `${x}%`,
       top: `${y}%`,
       sideways,
-      zIndex: 50 - index,
+      zIndex: 80 - index,
     });
   }
 
@@ -394,17 +386,17 @@ export function RoomShell({ initialSnapshot }: Props) {
                     <span>Cadena de juego</span>
                     <span>Cierre</span>
                   </div>
-                  <div className="rounded-[1.8rem] border border-dashed border-amber-100/15 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.08),rgba(0,0,0,0.18))] px-3 py-4 md:px-5 md:py-5 xl:px-7 xl:py-6">
+                  <div className="rounded-[1.9rem] border border-dashed border-amber-100/15 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.05),rgba(0,0,0,0.16))] px-2 py-3 md:px-4 md:py-4 xl:px-5 xl:py-5">
                     {snapshot.game.board.length === 0 ? (
-                      <div className="flex min-h-[280px] items-center justify-center text-center text-sm text-amber-100/70 md:min-h-[320px] xl:min-h-[360px]">
+                      <div className="flex min-h-[340px] items-center justify-center text-center text-sm text-amber-100/70 md:min-h-[420px] xl:min-h-[520px]">
                         La mesa espera la primera ficha.
                       </div>
                     ) : (
-                      <div className="relative min-h-[280px] md:min-h-[320px] xl:min-h-[360px]">
-                        <div className="pointer-events-none absolute inset-0 rounded-[1.5rem] border border-white/5" />
-                        <div className="pointer-events-none absolute inset-x-8 top-1/2 hidden h-px -translate-y-1/2 border-t border-dashed border-amber-100/10 md:block" />
-                        <div className="pointer-events-none absolute inset-y-8 left-1/2 hidden w-px -translate-x-1/2 border-l border-dashed border-amber-100/10 xl:block" />
-                        <div className="relative min-h-[280px] md:min-h-[320px] xl:min-h-[360px]">
+                      <div className="relative min-h-[340px] md:min-h-[420px] xl:min-h-[520px]">
+                        <div className="pointer-events-none absolute inset-0 rounded-[1.7rem] border border-white/5" />
+                        <div className="pointer-events-none absolute inset-x-6 top-[54%] border-t border-dashed border-amber-100/10" />
+                        <div className="pointer-events-none absolute inset-y-6 left-1/2 hidden -translate-x-1/2 border-l border-dashed border-amber-100/10 xl:block" />
+                        <div className="relative min-h-[340px] md:min-h-[420px] xl:min-h-[520px]">
                           {snapshot.game.board.map((tile, index) => {
                             const placement = boardPlacements[index];
                             return (
