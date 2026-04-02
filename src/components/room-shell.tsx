@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LiveRoomSnapshot, Seat } from '@/lib/domino/types';
 import { getBrowserSupabase } from '@/lib/supabase/client';
 import { fetchJson } from '@/lib/client/fetch';
@@ -54,6 +54,7 @@ export function RoomShell({ initialSnapshot }: Props) {
   const [chatInput, setChatInput] = useState('');
   const [actionState, setActionState] = useState<ActionState>({ loading: false, error: null });
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null);
+  const botTickRef = useRef<string | null>(null);
   const [clientIdentity] = useState<{ sessionId: string; displayName: string } | null>(() => {
     if (typeof window === 'undefined') return null;
     return ensureSession();
@@ -95,6 +96,30 @@ export function RoomShell({ initialSnapshot }: Props) {
     };
   }, [clientIdentity, initialSnapshot.members, initialSnapshot.room.code, initialSnapshot.room.id]);
 
+  useEffect(() => {
+    const turnSeat = snapshot.game.currentTurnSeat;
+    if (!turnSeat || snapshot.game.phase !== 'playing') return;
+
+    const turnMember = snapshot.members.find((member) => member.seat === turnSeat);
+    if (!turnMember?.isBot) {
+      botTickRef.current = null;
+      return;
+    }
+
+    const tickKey = `${snapshot.room.code}:${turnSeat}:${snapshot.game.board.length}:${snapshot.game.handCounts[turnSeat] ?? 0}`;
+    if (botTickRef.current === tickKey) return;
+    botTickRef.current = tickKey;
+
+    const timer = window.setTimeout(() => {
+      void fetchJson(`/api/rooms/${snapshot.room.code}/bot-play`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [snapshot.game.board.length, snapshot.game.currentTurnSeat, snapshot.game.handCounts, snapshot.game.phase, snapshot.members, snapshot.room.code]);
+
   const myMember = useMemo(() => {
     if (!clientIdentity) return null;
     return snapshot.members.find((member) => member.sessionId === clientIdentity.sessionId) ?? null;
@@ -121,6 +146,14 @@ export function RoomShell({ initialSnapshot }: Props) {
   async function claimSeat(seat: Seat) {
     if (!clientIdentity) return;
     await runAction(`/api/rooms/${snapshot.room.code}/seat`, { seat, sessionId: clientIdentity.sessionId });
+  }
+
+  async function addBot(seat: Seat) {
+    await runAction(`/api/rooms/${snapshot.room.code}/bot-seat`, { seat });
+  }
+
+  async function fillBots() {
+    await runAction(`/api/rooms/${snapshot.room.code}/bot-fill`, {});
   }
 
   async function startGame() {
@@ -169,29 +202,22 @@ export function RoomShell({ initialSnapshot }: Props) {
         <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_320px]">
           <div className="rounded-[1.75rem] border border-white/10 bg-black/15 p-4">
             <div className="relative min-h-[540px] rounded-[1.5rem] border border-white/10 bg-[radial-gradient(circle_at_center,rgba(22,101,52,0.95),rgba(6,78,59,0.95))] p-4 md:p-6">
-              <div className="absolute left-1/2 top-4 -translate-x-1/2 text-center">
-                <p className="text-xs uppercase tracking-[0.24em] text-amber-100/60">Norte</p>
-                <p className="font-semibold">{snapshot.members.find((member) => member.seat === 'north')?.displayName ?? 'Libre'}</p>
-                <p className="text-sm text-amber-100/70">{snapshot.game.handCounts.north ?? 0} fichas</p>
-              </div>
-
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 text-center md:right-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-amber-100/60">Este</p>
-                <p className="font-semibold">{snapshot.members.find((member) => member.seat === 'east')?.displayName ?? 'Libre'}</p>
-                <p className="text-sm text-amber-100/70">{snapshot.game.handCounts.east ?? 0} fichas</p>
-              </div>
-
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-center">
-                <p className="text-xs uppercase tracking-[0.24em] text-amber-100/60">Sur</p>
-                <p className="font-semibold">{snapshot.members.find((member) => member.seat === 'south')?.displayName ?? 'Libre'}</p>
-                <p className="text-sm text-amber-100/70">{snapshot.game.handCounts.south ?? 0} fichas</p>
-              </div>
-
-              <div className="absolute left-2 top-1/2 -translate-y-1/2 text-center md:left-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-amber-100/60">Oeste</p>
-                <p className="font-semibold">{snapshot.members.find((member) => member.seat === 'west')?.displayName ?? 'Libre'}</p>
-                <p className="text-sm text-amber-100/70">{snapshot.game.handCounts.west ?? 0} fichas</p>
-              </div>
+              {(['north', 'east', 'south', 'west'] as Seat[]).map((seat) => {
+                const member = snapshot.members.find((item) => item.seat === seat);
+                const positionClass = {
+                  north: 'absolute left-1/2 top-4 -translate-x-1/2 text-center',
+                  east: 'absolute right-2 top-1/2 -translate-y-1/2 text-center md:right-4',
+                  south: 'absolute bottom-4 left-1/2 -translate-x-1/2 text-center',
+                  west: 'absolute left-2 top-1/2 -translate-y-1/2 text-center md:left-4',
+                }[seat];
+                return (
+                  <div key={seat} className={positionClass}>
+                    <p className="text-xs uppercase tracking-[0.24em] text-amber-100/60">{seatLabel(seat)}</p>
+                    <p className="font-semibold">{member?.displayName ?? 'Libre'}</p>
+                    <p className="text-sm text-amber-100/70">{snapshot.game.handCounts[seat] ?? 0} fichas{member?.isBot ? ' · CPU' : ''}</p>
+                  </div>
+                );
+              })}
 
               <div className="mx-auto mt-24 flex min-h-[220px] max-w-[760px] flex-wrap items-center justify-center gap-3 rounded-[1.5rem] border border-dashed border-white/10 bg-black/10 p-4 md:mt-28">
                 {snapshot.game.board.length === 0 ? (
@@ -218,18 +244,27 @@ export function RoomShell({ initialSnapshot }: Props) {
                   const owner = snapshot.members.find((member) => member.seat === seat);
                   const mine = owner?.sessionId === clientIdentity?.sessionId;
                   return (
-                    <button
-                      key={seat}
-                      onClick={() => claimSeat(seat)}
-                      disabled={actionState.loading || (!!owner && !mine)}
-                      className="rounded-full border border-white/10 px-3 py-2 text-sm disabled:opacity-50"
-                    >
-                      {seatLabel(seat)} · {owner?.displayName ?? 'Libre'}
-                    </button>
+                    <div key={seat} className="flex gap-2">
+                      <button
+                        onClick={() => claimSeat(seat)}
+                        disabled={actionState.loading || (!!owner && !mine)}
+                        className="rounded-full border border-white/10 px-3 py-2 text-sm disabled:opacity-50"
+                      >
+                        {seatLabel(seat)} · {owner?.displayName ?? 'Libre'}
+                      </button>
+                      {!owner ? (
+                        <button onClick={() => addBot(seat)} disabled={actionState.loading} className="rounded-full border border-amber-300/30 px-3 py-2 text-sm text-amber-200 disabled:opacity-50">
+                          CPU
+                        </button>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>
-              <button onClick={startGame} disabled={actionState.loading} className="mt-4 w-full rounded-2xl bg-amber-300 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50">
+              <button onClick={fillBots} disabled={actionState.loading} className="mt-4 w-full rounded-2xl border border-amber-300/30 px-4 py-3 text-sm font-semibold text-amber-200 disabled:opacity-50">
+                Completar vacíos con CPU
+              </button>
+              <button onClick={startGame} disabled={actionState.loading} className="mt-3 w-full rounded-2xl bg-amber-300 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50">
                 Repartir e iniciar
               </button>
               <div className="mt-3 rounded-2xl border border-white/10 bg-black/10 p-3 text-xs text-amber-100/70 break-all">{inviteLink}</div>

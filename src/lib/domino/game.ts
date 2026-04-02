@@ -78,6 +78,10 @@ export function canPlayOnSide(tile: Tile, side: 'left' | 'right', board: Tile[])
   return target === tile.left || target === tile.right;
 }
 
+export function getValidSides(tile: Tile, board: Tile[]) {
+  return (['left', 'right'] as const).filter((side) => canPlayOnSide(tile, side, board));
+}
+
 export function orientTile(tile: Tile, side: 'left' | 'right', board: Tile[]): Tile {
   if (board.length === 0) return tile;
 
@@ -101,6 +105,28 @@ export function nextSeat(current: Seat | null) {
   if (!current) return 'north' as const;
   const index = SEATS.indexOf(current);
   return SEATS[(index + 1) % SEATS.length];
+}
+
+export function isBotSessionId(sessionId: string | null | undefined) {
+  return !!sessionId && sessionId.startsWith('bot:');
+}
+
+export function makeBotIdentity(seat: Seat) {
+  return {
+    sessionId: `bot:${seat}`,
+    displayName: `CPU ${seat.toUpperCase()}`,
+  };
+}
+
+export function chooseBotMove(hand: Tile[], board: Tile[]) {
+  for (const tile of hand) {
+    const validSides = getValidSides(tile, board);
+    if (validSides.length > 0) {
+      return { tile, side: validSides[0] };
+    }
+  }
+
+  return null;
 }
 
 export function normalizeGamePayload(raw: unknown): GamePayload {

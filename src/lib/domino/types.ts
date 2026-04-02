@@ -73,6 +73,7 @@ export type LiveRoomSnapshot = {
     seat: Seat | null;
     online: boolean;
     joinedAt: string;
+    isBot: boolean;
   }>;
   messages: Array<{
     id: string;

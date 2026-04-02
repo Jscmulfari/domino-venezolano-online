@@ -1,5 +1,5 @@
 import type { LiveRoomSnapshot, Seat } from '@/lib/domino/types';
-import { canPlayOnSide, normalizeGamePayload } from '@/lib/domino/game';
+import { canPlayOnSide, isBotSessionId, normalizeGamePayload } from '@/lib/domino/game';
 import { SEATS } from '@/lib/room/constants';
 import { createServerSupabase } from '@/lib/supabase/server';
 
@@ -37,6 +37,7 @@ export async function getRoomSnapshot(roomCode: string, sessionId?: string | nul
     seat: normalizeSeat(member.seat),
     online: member.online,
     joinedAt: member.joined_at,
+    isBot: isBotSessionId(member.session_id),
   }));
 
   const payload = normalizeGamePayload(game?.payload);
