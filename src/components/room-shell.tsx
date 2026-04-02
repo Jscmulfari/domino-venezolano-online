@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getBrowserSupabase } from '@/lib/supabase/client';
 import type { LiveRoomSnapshot, Seat } from '@/lib/domino/types';
 import { SEATS } from '@/lib/room/constants';
+import { fetchJson } from '@/lib/client/fetch';
 
 type Props = {
   initialSnapshot: LiveRoomSnapshot;
@@ -40,14 +41,26 @@ export function RoomShell({ initialSnapshot }: Props) {
   const [chatInput, setChatInput] = useState('');
   const [tileInput, setTileInput] = useState('6-6');
   const [actionState, setActionState] = useState<ActionState>({ loading: false, error: null });
-  const [clientIdentity, setClientIdentity] = useState<{ sessionId: string; displayName: string } | null>(null);
+  const [clientIdentity] = useState<{ sessionId: string; displayName: string } | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return ensureSession();
+  });
 
   useEffect(() => {
-    const identity = ensureSession();
-    setClientIdentity(identity);
+    async function refreshSnapshot() {
+      const result = await fetchJson<LiveRoomSnapshot>(`/api/rooms/${initialSnapshot.room.code}/snapshot`, { cache: 'no-store' });
+      if (!result.ok) {
+        setActionState({ loading: false, error: result.error });
+        return;
+      }
 
-    if (!initialSnapshot.members.some((member) => member.sessionId === identity.sessionId)) {
-      void fetch('/api/rooms/join', {
+      setSnapshot(result.data);
+    }
+
+    const identity = clientIdentity;
+
+    if (identity && !initialSnapshot.members.some((member) => member.sessionId === identity.sessionId)) {
+      void fetchJson<{ roomCode: string }>('/api/rooms/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -55,6 +68,13 @@ export function RoomShell({ initialSnapshot }: Props) {
           roomCode: initialSnapshot.room.code,
           sessionId: identity.sessionId,
         }),
+      }).then((result) => {
+        if (!result.ok) {
+          setActionState({ loading: false, error: result.error });
+          return;
+        }
+
+        void refreshSnapshot();
       });
     }
 
@@ -63,27 +83,15 @@ export function RoomShell({ initialSnapshot }: Props) {
 
     const channel = supabase
       .channel(`room:${roomId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_members', filter: `room_id=eq.${roomId}` }, async () => {
-        const response = await fetch(`/api/rooms/${initialSnapshot.room.code}/snapshot`, { cache: 'no-store' });
-        const payload = (await response.json()) as LiveRoomSnapshot;
-        setSnapshot(payload);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` }, async () => {
-        const response = await fetch(`/api/rooms/${initialSnapshot.room.code}/snapshot`, { cache: 'no-store' });
-        const payload = (await response.json()) as LiveRoomSnapshot;
-        setSnapshot(payload);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_state', filter: `room_id=eq.${roomId}` }, async () => {
-        const response = await fetch(`/api/rooms/${initialSnapshot.room.code}/snapshot`, { cache: 'no-store' });
-        const payload = (await response.json()) as LiveRoomSnapshot;
-        setSnapshot(payload);
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_members', filter: `room_id=eq.${roomId}` }, refreshSnapshot)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` }, refreshSnapshot)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_state', filter: `room_id=eq.${roomId}` }, refreshSnapshot)
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [initialSnapshot.members, initialSnapshot.room.code, initialSnapshot.room.id]);
+  }, [clientIdentity, initialSnapshot.members, initialSnapshot.room.code, initialSnapshot.room.id]);
 
   const myMember = useMemo(() => {
     if (!clientIdentity) return null;
@@ -93,17 +101,14 @@ export function RoomShell({ initialSnapshot }: Props) {
   async function runAction(url: string, body: object) {
     setActionState({ loading: true, error: null });
 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+    const result = await fetchJson<{ ok: true }>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
 
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? 'Error inesperado');
-    } catch (caughtError) {
-      setActionState({ loading: false, error: caughtError instanceof Error ? caughtError.message : 'Error inesperado' });
+    if (!result.ok) {
+      setActionState({ loading: false, error: result.error });
       return false;
     }
 

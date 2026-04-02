@@ -1,4 +1,3 @@
-import { notFound } from 'next/navigation';
 import type { LiveRoomSnapshot, Seat } from '@/lib/domino/types';
 import { SEATS } from '@/lib/room/constants';
 import { createServerSupabase } from '@/lib/supabase/server';
@@ -22,7 +21,7 @@ export async function getRoomSnapshot(roomCode: string): Promise<LiveRoomSnapsho
   }
 
   if (!room) {
-    notFound();
+    throw new Error('Sala no encontrada');
   }
 
   const [{ data: members, error: membersError }, { data: messages, error: messagesError }, { data: game, error: gameError }] =

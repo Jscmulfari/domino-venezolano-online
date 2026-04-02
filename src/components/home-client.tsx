@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { fetchJson } from '@/lib/client/fetch';
 
 function makeSessionId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -36,16 +37,15 @@ export function HomeClient() {
       const sessionId = getStoredSessionId();
       window.localStorage.setItem('domino:display-name', displayName.trim());
 
-      const response = await fetch('/api/rooms', {
+      const result = await fetchJson<{ roomCode: string }>('/api/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ displayName, roomName, sessionId }),
       });
 
-      const payload = (await response.json()) as { error?: string; roomCode?: string };
-      if (!response.ok || !payload.roomCode) throw new Error(payload.error ?? 'No se pudo crear la sala');
+      if (!result.ok) throw new Error(result.error);
 
-      router.push(`/rooms/${payload.roomCode}`);
+      router.push(`/rooms/${result.data.roomCode}`);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Error inesperado');
     } finally {
@@ -62,16 +62,15 @@ export function HomeClient() {
       const normalizedCode = roomCode.trim().toUpperCase();
       window.localStorage.setItem('domino:display-name', displayName.trim());
 
-      const response = await fetch('/api/rooms/join', {
+      const result = await fetchJson<{ roomCode: string }>('/api/rooms/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ displayName, roomCode: normalizedCode, sessionId }),
       });
 
-      const payload = (await response.json()) as { error?: string; roomCode?: string };
-      if (!response.ok || !payload.roomCode) throw new Error(payload.error ?? 'No se pudo unir a la sala');
+      if (!result.ok) throw new Error(result.error);
 
-      router.push(`/rooms/${payload.roomCode}`);
+      router.push(`/rooms/${result.data.roomCode}`);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Error inesperado');
     } finally {
