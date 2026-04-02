@@ -80,7 +80,7 @@ function TileFace({
   selected = false,
   disabled = false,
   compact = false,
-  sideways = false,
+  rotation = 0,
   onClick,
 }: {
   left: number;
@@ -89,18 +89,18 @@ function TileFace({
   selected?: boolean;
   disabled?: boolean;
   compact?: boolean;
-  sideways?: boolean;
+  rotation?: number;
   onClick?: () => void;
 }) {
   const sizeClass = compact ? 'h-16 w-10 rounded-xl' : 'h-24 w-14 rounded-2xl';
-  const orientationClass = sideways ? 'rotate-90' : '';
 
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`${sizeClass} ${orientationClass} shrink-0 border bg-white shadow-xl transition ${
+      style={{ transform: `rotate(${rotation}deg)` }}
+      className={`${sizeClass} shrink-0 border bg-white shadow-xl transition ${
         hidden ? 'border-slate-700 bg-slate-100' : 'border-slate-300'
       } ${selected ? 'ring-4 ring-cyan-300 -translate-y-2' : ''} ${disabled ? 'opacity-45' : 'hover:-translate-y-1'} ${compact ? '' : ''}`}
     >
@@ -122,7 +122,7 @@ function OpponentFan({ count, sideways = false }: { count: number; sideways?: bo
     <div className={`flex items-center justify-center ${sideways ? 'flex-col gap-[-10px]' : '-space-x-6'}`}>
       {Array.from({ length: Math.min(count, 7) }).map((_, index) => (
         <div key={index} className={sideways ? '-my-3' : ''} style={{ zIndex: index + 1 }}>
-          <TileFace left={0} right={0} hidden compact sideways={sideways} />
+          <TileFace left={0} right={0} hidden compact rotation={sideways ? 90 : 0} />
         </div>
       ))}
       {count > 7 ? <span className="ml-2 text-xs text-amber-100/65">+{count - 7}</span> : null}
@@ -150,34 +150,38 @@ function SeatBadge({ seat, member, count, active }: { seat: Seat; member?: LiveR
 type BoardPlacement = {
   left: string;
   top: string;
-  sideways: boolean;
+  rotation: number;
   zIndex: number;
 };
 
 function buildBranchPlacements(count: number, direction: 'left' | 'right') {
   const placements: BoardPlacement[] = [];
   const startX = 50;
-  const startY = 54;
+  const startY = 56;
   const sign = direction === 'right' ? 1 : -1;
-  const horizontalStep = 9.5;
-  const verticalStep = 17;
-  const horizontalRun = 4;
+  const horizontalStep = 9;
+  const verticalStep = 15;
+  const runLength = 5;
 
   for (let index = 0; index < count; index += 1) {
-    const segment = Math.floor(index / horizontalRun);
-    const offsetInSegment = index % horizontalRun;
-    const movingOutward = segment % 2 === 0;
-
-    const x = movingOutward
-      ? startX + sign * (offsetInSegment + 1) * horizontalStep
-      : startX + sign * (horizontalRun - offsetInSegment) * horizontalStep;
+    const segment = Math.floor(index / runLength);
+    const offsetInSegment = index % runLength;
+    const horizontalDirection = segment % 2 === 0 ? sign : -sign;
+    const baseX = segment % 2 === 0 ? startX : startX + sign * runLength * horizontalStep;
+    const x = baseX + horizontalDirection * (offsetInSegment + 1) * horizontalStep;
     const y = startY - segment * verticalStep;
-    const sideways = offsetInSegment === horizontalRun - 1;
+
+    let rotation = 0;
+    if (offsetInSegment === runLength - 1) {
+      rotation = horizontalDirection === 1 ? 90 : -90;
+    } else if (segment % 2 === 1 && (offsetInSegment === 0 || offsetInSegment === 1)) {
+      rotation = direction === 'right' ? -6 : 6;
+    }
 
     placements.push({
       left: `${x}%`,
       top: `${y}%`,
-      sideways,
+      rotation,
       zIndex: 80 - index,
     });
   }
@@ -189,9 +193,9 @@ function getBoardPlacements(total: number) {
   if (total === 0) return [] as BoardPlacement[];
 
   const centerIndex = Math.floor((total - 1) / 2);
-  const placements: BoardPlacement[] = Array.from({ length: total }, () => ({ left: '50%', top: '50%', sideways: false, zIndex: 1 }));
+  const placements: BoardPlacement[] = Array.from({ length: total }, () => ({ left: '50%', top: '50%', rotation: 0, zIndex: 1 }));
 
-  placements[centerIndex] = { left: '50%', top: '50%', sideways: false, zIndex: 60 };
+  placements[centerIndex] = { left: '50%', top: '56%', rotation: 0, zIndex: 60 };
 
   const rightBranch = buildBranchPlacements(total - centerIndex - 1, 'right');
   for (let index = centerIndex + 1; index < total; index += 1) {
@@ -405,7 +409,7 @@ export function RoomShell({ initialSnapshot }: Props) {
                                 style={{ left: placement.left, top: placement.top, zIndex: placement.zIndex }}
                                 className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-150"
                               >
-                                <TileFace left={tile.left} right={tile.right} sideways={placement.sideways} />
+                                <TileFace left={tile.left} right={tile.right} rotation={placement.rotation} />
                               </div>
                             );
                           })}
