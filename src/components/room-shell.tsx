@@ -147,20 +147,24 @@ function SeatBadge({ seat, member, count, active }: { seat: Seat; member?: LiveR
   );
 }
 
-function getBoardTileClasses(index: number, total: number) {
-  const middle = Math.floor(total / 2);
-  const distance = Math.abs(index - middle);
-  const row = Math.floor(index / 7);
-  const tilt = index % 6 === 1 ? -10 : index % 6 === 4 ? 10 : index % 4 === 2 ? 6 : 0;
-  const sideways = index % 5 === 2 || index % 5 === 3;
-  const lift = row % 2 === 0 ? (index % 3) * 8 : ((index + 1) % 3) * -8;
-  const xShift = row % 2 === 0 ? distance * -2 : distance * 2;
+function getBoardTileClasses(index: number) {
+  const columns = 8;
+  const row = Math.floor(index / columns);
+  const positionInRow = index % columns;
+  const isReverseRow = row % 2 === 1;
+  const column = isReverseRow ? columns - positionInRow : positionInRow + 1;
+  const isTurnColumn = positionInRow === columns - 1;
+  const sideways = isTurnColumn;
+  const verticalNudge = row % 2 === 0 ? 8 : -8;
+  const rotate = sideways ? (row % 2 === 0 ? 90 : -90) : 0;
 
   return {
     sideways,
     style: {
-      transform: `translate(${xShift}px, ${lift}px) rotate(${tilt}deg)`,
-      zIndex: total - distance,
+      gridColumn: `${column} / span 1`,
+      gridRow: `${row + 1} / span 1`,
+      transform: `translateY(${sideways ? 0 : verticalNudge}px) rotate(${rotate}deg)`,
+      zIndex: 100 - index,
     },
   };
 }
@@ -351,11 +355,12 @@ export function RoomShell({ initialSnapshot }: Props) {
                       </div>
                     ) : (
                       <div className="relative min-h-[280px] md:min-h-[320px] xl:min-h-[360px]">
-                        <div className="pointer-events-none absolute inset-x-12 top-1/2 hidden h-px -translate-y-1/2 border-t border-dashed border-amber-100/10 md:block" />
-                        <div className="pointer-events-none absolute inset-y-10 left-1/2 hidden w-px -translate-x-1/2 border-l border-dashed border-amber-100/10 xl:block" />
-                        <div className="flex h-full flex-wrap content-center items-center justify-center gap-x-1 gap-y-4 md:gap-x-2 xl:gap-x-3">
+                        <div className="pointer-events-none absolute inset-0 rounded-[1.5rem] border border-white/5" />
+                        <div className="pointer-events-none absolute inset-x-8 top-1/2 hidden h-px -translate-y-1/2 border-t border-dashed border-amber-100/10 md:block" />
+                        <div className="pointer-events-none absolute inset-y-8 left-1/2 hidden w-px -translate-x-1/2 border-l border-dashed border-amber-100/10 xl:block" />
+                        <div className="grid min-h-[280px] grid-cols-8 place-items-center gap-x-1 gap-y-3 px-2 py-4 md:min-h-[320px] md:gap-x-2 md:gap-y-4 md:px-3 xl:min-h-[360px] xl:gap-x-3 xl:gap-y-5 xl:px-6">
                           {snapshot.game.board.map((tile, index) => {
-                            const placement = getBoardTileClasses(index, snapshot.game.board.length);
+                            const placement = getBoardTileClasses(index);
                             return (
                               <div key={`${tile.id}-${tile.placedBy}-${tile.left}-${tile.right}-${index}`} style={placement.style} className="transition-transform duration-150">
                                 <TileFace left={tile.left} right={tile.right} sideways={placement.sideways} />
