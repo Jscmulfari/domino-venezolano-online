@@ -148,64 +148,143 @@ function SeatBadge({ seat, member, count, active }: { seat: Seat; member?: LiveR
 }
 
 type BoardPlacement = {
-  left: string;
-  top: string;
+  left: number;
+  top: number;
   rotation: number;
   zIndex: number;
 };
 
-function buildBranchPlacements(count: number, direction: 'left' | 'right') {
-  const placements: BoardPlacement[] = [];
-  const startX = 50;
-  const startY = 56;
-  const sign = direction === 'right' ? 1 : -1;
-  const horizontalStep = 9;
-  const verticalStep = 15;
-  const runLength = 5;
+type Axis = 'x' | 'y';
+type UnitDirection = { dx: number; dy: number };
 
-  for (let index = 0; index < count; index += 1) {
-    const segment = Math.floor(index / runLength);
-    const offsetInSegment = index % runLength;
-    const horizontalDirection = segment % 2 === 0 ? sign : -sign;
-    const baseX = segment % 2 === 0 ? startX : startX + sign * runLength * horizontalStep;
-    const x = baseX + horizontalDirection * (offsetInSegment + 1) * horizontalStep;
-    const y = startY - segment * verticalStep;
+type BranchCursor = {
+  x: number;
+  y: number;
+  direction: UnitDirection;
+  axis: Axis;
+  horizontalSign: 1 | -1;
+  verticalSign: 1 | -1;
+};
 
-    let rotation = 0;
-    if (offsetInSegment === runLength - 1) {
-      rotation = horizontalDirection === 1 ? 90 : -90;
-    } else if (segment % 2 === 1 && (offsetInSegment === 0 || offsetInSegment === 1)) {
-      rotation = direction === 'right' ? -6 : 6;
+const BOARD_CENTER_X = 50;
+const BOARD_CENTER_Y = 50;
+const BOARD_MARGIN = 12;
+const LONGITUDINAL_STEP = 7.2;
+const DOUBLE_STEP = 5.2;
+const TURN_STEP = 10.2;
+
+function isDoubleTile(tile: LiveRoomSnapshot['game']['board'][number]) {
+  return tile.left === tile.right;
+}
+
+function rotateClockwise(direction: UnitDirection): UnitDirection {
+  return { dx: -direction.dy, dy: direction.dx };
+}
+
+function rotateCounterClockwise(direction: UnitDirection): UnitDirection {
+  return { dx: direction.dy, dy: -direction.dx };
+}
+
+function getTileRotation(axis: Axis, tile: LiveRoomSnapshot['game']['board'][number]) {
+  if (isDoubleTile(tile)) {
+    return axis === 'x' ? 0 : 90;
+  }
+
+  return axis === 'x' ? 90 : 0;
+}
+
+function projectPlacement(cursor: BranchCursor, tile: LiveRoomSnapshot['game']['board'][number]) {
+  const step = isDoubleTile(tile) ? DOUBLE_STEP : LONGITUDINAL_STEP;
+  return {
+    x: cursor.x + cursor.direction.dx * step,
+    y: cursor.y + cursor.direction.dy * step,
+  };
+}
+
+function wouldOverflow(position: { x: number; y: number }) {
+  return position.x < BOARD_MARGIN || position.x > 100 - BOARD_MARGIN || position.y < BOARD_MARGIN || position.y > 100 - BOARD_MARGIN;
+}
+
+function turnCursor(cursor: BranchCursor): BranchCursor {
+  const rotatingRight = cursor.axis === 'x' ? cursor.horizontalSign === 1 : cursor.verticalSign === 1;
+  const direction = rotatingRight ? rotateCounterClockwise(cursor.direction) : rotateClockwise(cursor.direction);
+  const axis: Axis = direction.dx !== 0 ? 'x' : 'y';
+
+  return {
+    ...cursor,
+    x: cursor.x + direction.dx * TURN_STEP,
+    y: cursor.y + direction.dy * TURN_STEP,
+    direction,
+    axis,
+  };
+}
+
+function buildBranchPlacements(tiles: LiveRoomSnapshot['game']['board'], startIndex: number, step: 1 | -1) {
+  const placements = new Map<number, BoardPlacement>();
+  let cursor: BranchCursor = {
+    x: BOARD_CENTER_X,
+    y: BOARD_CENTER_Y,
+    direction: { dx: step, dy: 0 },
+    axis: 'x',
+    horizontalSign: step,
+    verticalSign: step === 1 ? -1 : 1,
+  };
+
+  for (let index = startIndex + step; index >= 0 && index < tiles.length; index += step) {
+    const tile = tiles[index];
+    let next = projectPlacement(cursor, tile);
+
+    if (wouldOverflow(next)) {
+      cursor = turnCursor(cursor);
+      next = projectPlacement(cursor, tile);
     }
 
-    placements.push({
-      left: `${x}%`,
-      top: `${y}%`,
-      rotation,
-      zIndex: 80 - index,
+    placements.set(index, {
+      left: next.x,
+      top: next.y,
+      rotation: getTileRotation(cursor.axis, tile),
+      zIndex: 100 - Math.abs(index - startIndex),
     });
+
+    cursor = {
+      ...cursor,
+      x: next.x,
+      y: next.y,
+    };
   }
 
   return placements;
 }
 
-function getBoardPlacements(total: number) {
-  if (total === 0) return [] as BoardPlacement[];
+function getOpeningIndex(board: LiveRoomSnapshot['game']['board']) {
+  const openingIndex = board.findIndex((tile) => tile.id === '6-6');
+  return openingIndex >= 0 ? openingIndex : Math.floor((board.length - 1) / 2);
+}
 
-  const centerIndex = Math.floor((total - 1) / 2);
-  const placements: BoardPlacement[] = Array.from({ length: total }, () => ({ left: '50%', top: '50%', rotation: 0, zIndex: 1 }));
+function getBoardPlacements(board: LiveRoomSnapshot['game']['board']) {
+  if (board.length === 0) return [] as BoardPlacement[];
 
-  placements[centerIndex] = { left: '50%', top: '56%', rotation: 0, zIndex: 60 };
+  const placements: BoardPlacement[] = Array.from({ length: board.length }, () => ({ left: BOARD_CENTER_X, top: BOARD_CENTER_Y, rotation: 90, zIndex: 1 }));
+  const openingIndex = getOpeningIndex(board);
+  const openingTile = board[openingIndex];
 
-  const rightBranch = buildBranchPlacements(total - centerIndex - 1, 'right');
-  for (let index = centerIndex + 1; index < total; index += 1) {
-    placements[index] = rightBranch[index - centerIndex - 1];
-  }
+  placements[openingIndex] = {
+    left: BOARD_CENTER_X,
+    top: BOARD_CENTER_Y,
+    rotation: isDoubleTile(openingTile) ? 0 : 90,
+    zIndex: 120,
+  };
 
-  const leftBranch = buildBranchPlacements(centerIndex, 'left');
-  for (let offset = 1; offset <= centerIndex; offset += 1) {
-    placements[centerIndex - offset] = leftBranch[offset - 1];
-  }
+  const leftBranch = buildBranchPlacements(board, openingIndex, -1);
+  const rightBranch = buildBranchPlacements(board, openingIndex, 1);
+
+  leftBranch.forEach((placement, index) => {
+    placements[index] = placement;
+  });
+
+  rightBranch.forEach((placement, index) => {
+    placements[index] = placement;
+  });
 
   return placements;
 }
@@ -348,7 +427,7 @@ export function RoomShell({ initialSnapshot }: Props) {
   const eastMember = snapshot.members.find((member) => member.seat === 'east');
   const southMember = snapshot.members.find((member) => member.seat === 'south');
   const westMember = snapshot.members.find((member) => member.seat === 'west');
-  const boardPlacements = getBoardPlacements(snapshot.game.board.length);
+  const boardPlacements = getBoardPlacements(snapshot.game.board);
 
   return (
     <div className="space-y-4">
@@ -406,7 +485,7 @@ export function RoomShell({ initialSnapshot }: Props) {
                             return (
                               <div
                                 key={`${tile.id}-${tile.placedBy}-${tile.left}-${tile.right}-${index}`}
-                                style={{ left: placement.left, top: placement.top, zIndex: placement.zIndex }}
+                                style={{ left: `${placement.left}%`, top: `${placement.top}%`, zIndex: placement.zIndex }}
                                 className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-150"
                               >
                                 <TileFace left={tile.left} right={tile.right} rotation={placement.rotation} />
